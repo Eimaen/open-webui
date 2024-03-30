@@ -39,6 +39,7 @@
 	import { RAGTemplate } from '$lib/utils/rag';
 	import { LITELLM_API_BASE_URL, OPENAI_API_BASE_URL } from '$lib/constants';
 	import { WEBUI_BASE_URL } from '$lib/constants';
+	import { translate } from '$lib/apis/translations';
 
 	const i18n = getContext('i18n');
 
@@ -47,6 +48,13 @@
 	let processing = '';
 	let messagesContainerElement: HTMLDivElement;
 	let currentRequestId = null;
+
+	let promptSourceLanguage = '';
+	let promptTargetLanguage = '';
+	let sourceLanguage = '';
+	let targetLanguage = '';
+	let autoTranslate = false;
+	let autoTranslatePrompt = false;
 
 	let selectedModels = [''];
 
@@ -96,6 +104,15 @@
 
 	onMount(async () => {
 		await initNewChat();
+
+		let settings = JSON.parse(localStorage.getItem('settings') ?? '{}');
+
+		sourceLanguage = settings.translation.sourceLanguage ?? '';
+		targetLanguage = settings.translation.targetLanguage ?? 'EN';
+		promptSourceLanguage = settings.translation.promptSourceLanguage ?? '';
+		promptTargetLanguage = settings.translation.promptTargetLanguage ?? 'EN';
+		autoTranslate = settings.translation.autoTranslate ?? false;
+		autoTranslatePrompt = settings.translation.autoTranslatePrompt ?? false;
 	});
 
 	//////////////////////////
@@ -180,13 +197,24 @@
 
 			// Create user message
 			let userMessageId = uuidv4();
+			
+			let translatedUserPrompt = await translatePrompt(userPrompt);
+			if (translatedUserPrompt === '') {
+				toast.error($i18n.t('Prompt translation failed'));
+			}
+
 			let userMessage = {
 				id: userMessageId,
 				parentId: messages.length !== 0 ? messages.at(-1).id : null,
 				childrenIds: [],
 				role: 'user',
 				user: _user ?? undefined,
-				content: userPrompt,
+				content: translatedUserPrompt === '' ? userPrompt : translatedUserPrompt,
+				translationData: {
+					translated: translatedUserPrompt !== '',
+					language: promptTargetLanguage,
+					originalContent: userPrompt,
+				},
 				files: files.length > 0 ? files : undefined,
 				timestamp: Math.floor(Date.now() / 1000) // Unix epoch
 			};
@@ -232,7 +260,7 @@
 			files = [];
 
 			// Send prompt
-			await sendPrompt(userPrompt, userMessageId);
+			await sendPrompt(userMessage.content, userMessageId);
 		}
 	};
 
@@ -252,6 +280,11 @@
 						childrenIds: [],
 						role: 'assistant',
 						content: '',
+						translationData: {
+							translated: false,
+							language: targetLanguage,
+							translatedContent: ''
+						},
 						model: model.id,
 						timestamp: Math.floor(Date.now() / 1000) // Unix epoch
 					};
@@ -273,6 +306,20 @@
 					} else if (model) {
 						await sendPromptOllama(model, prompt, responseMessageId, _chatId);
 					}
+
+					if (history.messages[responseMessageId].done && autoTranslate) {
+						console.log(history.messages[responseMessageId].content)
+						const translatedContent = await translateMessage(history.messages[responseMessageId].content);
+						history.messages[responseMessageId].translationData = {
+							translated: translatedContent !== '',
+							language: targetLanguage,
+							translatedContent,
+						};
+						await updateChatById(localStorage.token, _chatId, {
+							messages: messages,
+							history: history
+						});
+					}
 				} else {
 					toast.error($i18n.t(`Model {{modelId}} not found`, { modelId }));
 				}
@@ -280,6 +327,28 @@
 		);
 
 		await chats.set(await getChatList(localStorage.token));
+	};
+
+	const translateMessage = async (message: string) => {
+		const res = await translate(localStorage.token, message, targetLanguage, sourceLanguage).catch(
+			(error) => {
+				toast.error(error);
+				return '';
+			}
+		);
+
+		return res.translation;
+	};
+
+	const translatePrompt = async (message: string) => {
+		const res = await translate(localStorage.token, message, promptTargetLanguage, promptSourceLanguage).catch(
+			(error) => {
+				toast.error(error);
+				return '';
+			}
+		);
+
+		return res.translation;
 	};
 
 	const sendPromptOllama = async (model, userPrompt, responseMessageId, _chatId) => {

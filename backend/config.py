@@ -407,3 +407,9 @@ WHISPER_MODEL_DIR = os.getenv("WHISPER_MODEL_DIR", f"{CACHE_DIR}/whisper/models"
 
 AUTOMATIC1111_BASE_URL = os.getenv("AUTOMATIC1111_BASE_URL", "")
 COMFYUI_BASE_URL = os.getenv("COMFYUI_BASE_URL", "")
+
+####################################
+# Translate
+####################################
+
+DEEPLX_BASE_URL = os.getenv("DEEPLX_BASE_URL", "http://localhost:1188")

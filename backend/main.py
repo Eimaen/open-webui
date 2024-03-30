@@ -23,6 +23,7 @@ from apps.audio.main import app as audio_app
 from apps.images.main import app as images_app
 from apps.rag.main import app as rag_app
 from apps.web.main import app as webui_app
+from apps.translation.main import app as translation_app
 
 from pydantic import BaseModel
 from typing import List
@@ -160,6 +161,7 @@ app.mount("/images/api/v1", images_app)
 app.mount("/audio/api/v1", audio_app)
 app.mount("/rag/api/v1", rag_app)
 
+app.mount("/translation/api", translation_app)
 
 @app.get("/api/config")
 async def get_app_config():
@@ -169,6 +171,7 @@ async def get_app_config():
         "name": WEBUI_NAME,
         "version": VERSION,
         "images": images_app.state.ENABLED,
+        "translation": translation_app.state.ENABLED,
         "default_models": webui_app.state.DEFAULT_MODELS,
         "default_prompt_suggestions": webui_app.state.DEFAULT_PROMPT_SUGGESTIONS,
     }

@@ -201,6 +201,12 @@
 				<div class="w-full">
 					<pre id="user-message">{message.content}</pre>
 
+					{#if message?.translationData?.translated}
+					<div class="text-xs text-gray-700 dark:text-gray-500 mb-4">
+						{message?.translationData?.originalContent ?? ''}
+					</div>
+					{/if}
+
 					<div class=" flex justify-start space-x-1 text-gray-700 dark:text-gray-500">
 						{#if siblings.length > 1}
 							<div class="flex self-center -mt-1">

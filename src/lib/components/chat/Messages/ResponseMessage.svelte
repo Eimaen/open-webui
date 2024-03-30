@@ -417,6 +417,12 @@
 									<!-- {@html marked(message.content.replaceAll('\\', '\\\\'))} -->
 								{/if}
 
+								{#if message?.translationData?.translated}
+								<div class="text-xs text-gray-700 dark:text-gray-500 mb-4">
+									{message?.translationData?.translatedContent ?? ''}
+								</div>
+								{/if}
+
 								{#if message.done}
 									<div
 										class=" flex justify-start space-x-1 overflow-x-auto buttons text-gray-700 dark:text-gray-500"
